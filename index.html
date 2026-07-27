@@ -2,50 +2,274 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arcade Economy Test</title>
     <style>
-        /* Add your UI styling here */
-        body { font-family: sans-serif; padding: 20px; background: #222; color: #fff; }
-        .btn { padding: 10px 20px; background: #00bcd4; border: none; cursor: pointer; }
+        body { 
+            font-family: sans-serif; 
+            padding: 20px; 
+            background: #111; 
+            color: #fff; 
+            margin: 0;
+        }
+        h1, h3 { 
+            margin-top: 0; 
+        }
+        .container { 
+            margin-top: 20px; 
+            display: flex; 
+            gap: 20px; 
+            max-width: 750px; 
+            flex-wrap: wrap;
+        }
+        .panel { 
+            flex: 1; 
+            min-width: 300px; 
+            background: #1a1a1a; 
+            border: 1px solid #333; 
+            padding: 20px; 
+            border-radius: 4px; 
+        }
+        .btn { 
+            padding: 12px 20px; 
+            background: #00bcd4; 
+            border: none; 
+            cursor: pointer; 
+            color: #000; 
+            font-weight: bold; 
+            border-radius: 4px;
+            font-size: 0.95rem;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { 
+            opacity: 0.9; 
+        }
+        .btn:disabled { 
+            background: #444 !important; 
+            color: #888; 
+            cursor: not-allowed; 
+        }
+        .log-box { 
+            margin-top: 20px; 
+            background: #1a1a1a; 
+            border: 1px solid #333; 
+            padding: 15px; 
+            border-radius: 4px; 
+            max-width: 710px; 
+        }
+        .log-stream { 
+            font-family: monospace; 
+            color: #00ff00; 
+            font-size: 0.9rem; 
+            max-height: 120px; 
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+        .management-bar {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn-secondary { background: #555; color: #fff; padding: 6px 12px; font-size: 0.8rem; }
+        .btn-danger { background: #b71c1c; color: #fff; padding: 6px 12px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
     <h1>Arcade Economy System</h1>
-    <button class="btn" onclick="triggerSimulatedFetch()">Earn Game Credits</button>
+    <div class="container">
+        <!-- Player Overview Panel -->
+        <div class="panel">
+            <h3 style="color: #aaa;">Player Terminal</h3>
+            <p style="font-size: 1.5rem; margin: 10px 0;">
+                Credits: <span id="credit-count" style="color: #00bcd4; font-weight: bold;">100.00</span>
+            </p>
+            <p style="font-size: 0.95rem; color: #888; margin: 5px 0;">
+                Passive Income: <span id="income-rate" style="color: #00ff00; font-weight: bold;">0</span> credits / day
+            </p>
+            <div style="margin-top: 20px;">
+                <button class="btn" onclick="triggerActiveSession()">Earn Game Credits (+20m Session)</button>
+            </div>
+        </div>
+
+        <!-- Upgrade Shop Panel -->
+        <div class="panel">
+            <h3 style="color: #aaa;">Hiring Agency</h3>
+            <p style="font-size: 1.1rem; margin: 10px 0;">
+                Staff: <span id="engineer-count" style="color: #e91e63; font-weight: bold;">0</span> / 10 Engineers
+            </p>
+            <p style="font-size: 0.85rem; color: #888; margin-bottom: 22px;">
+                Each engineer generates 50 credits/day passively.
+            </p>
+            <button id="hire-btn" class="btn" style="background: #e91e63; color: #fff; width: 100%;" onclick="hireEngineer()">
+                Hire Engineer (Cost: 100)
+            </button>
+        </div>
+    </div>
+
+    <!-- System Audit Log & Local Storage Controls -->
+    <div class="log-box">
+        <h3 style="margin-top: 0; color: #aaa; font-size: 1rem;">System Logs</h3>
+        <div id="log-display" class="log-stream">Initializing Core Engine...</div>
+        
+        <div class="management-bar">
+            <button class="btn btn-secondary" onclick="saveGame(true)">Manual Save</button>
+            <button class="btn btn-danger" onclick="resetGame()">Wipe Save Data</button>
+        </div>
+    </div>
 
     <script>
-        // --- 1. SIMULATED BACKEND DATABASE ---
-        // Instead of a real server database, use localStorage or a local object variable
-        let playerDatabase = {
-            "player_123": { totalCredits: 500, earningMinutesToday: 0, lastActiveTime: Date.now() }
+        // Core Game Configurations
+        const STORAGE_KEY = "arcade_economy_save_v2";
+        const BASE_ENGINEER_COST = 100;
+        const MAX_ENGINEERS = 10;
+        const CREDITS_PER_DAY_PER_ENG = 50;
+        const SECONDS_IN_DAY = 86400;
+
+        // Default Data State Object
+        let gameState = {
+            playerCredits: 100.00,
+            engineersHired: 0,
+            lastSavedTimestamp: Date.now()
         };
 
-        // --- 2. SIMULATED API ENDPOINT ---
-        // Replace your app.post('/api/arcade/earn') logic with a standard frontend function
-        function simulateEarnEndpoint(playerId, gameSessionMinutes) {
-            const player = playerDatabase[playerId];
-            if (!player) return { error: "Player profile not found." };
-
-            let multiplier = 1.0;
-            // Your rest bonus checks, daily limits, and credit logic go here
-            let actualCredits = Math.round(gameSessionMinutes * multiplier);
-            player.totalCredits += actualCredits;
-
-            return { success: true, creditsAdded: actualCredits, totalCredits: player.totalCredits };
-        }
-
-        // --- 3. FRONTEND INTERACTION ---
-        function triggerSimulatedFetch() {
-            // Simulating your fetch().then() chain locally
-            const data = simulateEarnEndpoint("player_123", 20); 
-            
-            if (data.success) {
-                alert(`Success! Total Credits: ${data.totalCredits}`);
-            } else {
-                alert(`Error: ${data.error}`);
+        // --- LOCAL STORAGE ENGINES ---
+        function saveGame(isManual = false) {
+            gameState.lastSavedTimestamp = Date.now();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+            if (isManual) {
+                logMessage("System state explicitly compiled and committed to local cache.", false);
             }
         }
+
+        function loadGame() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                try {
+                    const parsed = JSON.parse(savedData);
+                    if (typeof parsed.playerCredits === 'number' && typeof parsed.engineersHired === 'number') {
+                        gameState.playerCredits = parsed.playerCredits;
+                        gameState.engineersHired = Math.min(parsed.engineersHired, MAX_ENGINEERS);
+                        
+                        logMessage(`Welcome back! Loading state... Found ${gameState.engineersHired} active Engineers.`, false);
+                        
+                        if (parsed.lastSavedTimestamp && gameState.engineersHired > 0) {
+                            calculateOfflineEarnings(parsed.lastSavedTimestamp);
+                        }
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Save state corrupt, rebuilding...", e);
+                }
+            }
+            logMessage("No existing save profile identified. Initializing clean player sandbox.", false);
+        }
+
+        function resetGame() {
+            if (confirm("Are you sure you want to completely erase your progress and engineers?")) {
+                localStorage.removeItem(STORAGE_KEY);
+                gameState.playerCredits = 100.00;
+                gameState.engineersHired = 0;
+                gameState.lastSavedTimestamp = Date.now();
+                updateGameUI();
+                logMessage("Database wiped. Profile returned to default parameters.", false);
+            }
+        }
+
+        function calculateOfflineEarnings(lastSavedTime) {
+            const timeElapsedMs = Date.now() - lastSavedTime;
+            const secondsElapsed = timeElapsedMs / 1000;
+            
+            if (secondsElapsed > 2) { 
+                const creditsPerSecondPerEng = CREDITS_PER_DAY_PER_ENG / SECONDS_IN_DAY;
+                const totalRatePerSecond = gameState.engineersHired * creditsPerSecondPerEng;
+                const earnedWhileAway = secondsElapsed * totalRatePerSecond;
+                
+                gameState.playerCredits += earnedWhileAway;
+                logMessage(`Offline Progress: Generated ${earnedWhileAway.toFixed(2)} credits during your ${Math.round(secondsElapsed)}s absence.`, false);
+            }
+        }
+        // --- ARCADE GAMEPLAY & INTERACTIVE LOGS ---
+        function triggerActiveSession() {
+            const mockSessionMinutes = 20; 
+            const creditsEarned = Math.round(mockSessionMinutes * 1.0); 
+            
+            gameState.playerCredits += creditsEarned;
+            
+            // Setting the second argument to 'true' outputs blue session text
+            logMessage(`Session Registered: Logged +${mockSessionMinutes}m played. Disbursed ${creditsEarned} base credits.`, true);
+            updateGameUI();
+        }
+
+        function hireEngineer() {
+            let currentCost = getCurrentEngineerCost();
+
+            if (gameState.playerCredits >= currentCost && gameState.engineersHired < MAX_ENGINEERS) {
+                gameState.playerCredits -= currentCost;
+                gameState.engineersHired++;
+                logMessage(`Hiring Action: Successfully commissioned Engineer #${gameState.engineersHired}.`, false);
+                saveGame(false);
+                updateGameUI();
+            } else if (gameState.playerCredits < currentCost) {
+                logMessage(`Transaction Rejected: Insufficient liquidity. Need ${currentCost} credits.`, false);
+            }
+        }
+
+        function getCurrentEngineerCost() {
+            return Math.round(BASE_ENGINEER_COST * Math.pow(1.4, gameState.engineersHired));
+        }
+
+        function logMessage(text, isSession = false) {
+            const display = document.getElementById("log-display");
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            // Clean Interactive Layout: click the gray [?] item to toggle the real clock text
+            const clickableTime = `<span onclick="this.nextSibling.style.display = this.nextSibling.style.display === 'none' ? 'inline' : 'none'" style="cursor: pointer; color: #666; font-size: 0.8rem; user-select: none;">[?]</span><span style="display: none; color: #888; font-size: 0.8rem; margin-right: 5px;"> [${time}]</span>`;
+            
+            if (isSession) {
+                display.innerHTML += `<br>${clickableTime}<span style="color: #00bcd4;">> ${text}</span>`;
+            } else {
+                display.innerHTML += `<br>${clickableTime}> ${text}`;
+            }
+            
+            display.scrollTop = display.scrollHeight; 
+        }
+
+        function updateGameUI() {
+            let nextCost = getCurrentEngineerCost();
+            let totalDailyIncome = gameState.engineersHired * CREDITS_PER_DAY_PER_ENG;
+
+            document.getElementById("credit-count").innerText = gameState.playerCredits.toFixed(2);
+            document.getElementById("income-rate").innerText = totalDailyIncome;
+            document.getElementById("engineer-count").innerText = gameState.engineersHired;
+
+            let hireBtn = document.getElementById("hire-btn");
+            if (gameState.engineersHired >= MAX_ENGINEERS) {
+                hireBtn.innerText = "Engineering Division Full (Max 10)";
+                hireBtn.disabled = true;
+            } else {
+                hireBtn.innerText = `Hire Engineer (Cost: ${nextCost})`;
+            }
+        }
+
+        // --- TIMED BACKGROUND ENGINES ---
+        // Incremental Passive Tick Engine (1 second interval)
+        setInterval(() => {
+            if (gameState.engineersHired > 0) {
+                const totalRatePerSecond = (gameState.engineersHired * CREDITS_PER_DAY_PER_ENG) / SECONDS_IN_DAY;
+                gameState.playerCredits += totalRatePerSecond;
+                document.getElementById("credit-count").innerText = gameState.playerCredits.toFixed(2);
+            }
+        }, 1000);
+
+        // Silent Cache Auto-Saver (5 second interval)
+        setInterval(() => {
+            saveGame(false);
+        }, 5000);
+
+        // System Initialization
+        loadGame();
+        updateGameUI();
     </script>
 </body>
 </html>
