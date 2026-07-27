@@ -1,95 +1,51 @@
-// Central Arcade Economy Server
-const express = require('express');
-const app = express();
-app.use(express.json());
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Arcade Economy Test</title>
+    <style>
+        /* Add your UI styling here */
+        body { font-family: sans-serif; padding: 20px; background: #222; color: #fff; }
+        .btn { padding: 10px 20px; background: #00bcd4; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
 
-// Mock Database (In production, use MongoDB, Redis, or PostgreSQL)
-const playerDatabase = {
-  "player_123": {
-    totalCredits: 500,
-    earningMinutesToday: 0,
-    lastActiveTime: Date.now() - (6 * 60 * 60 * 1000), // 6 hours ago (Eligible for Rest Bonus)
-    lastResetTime: Date.now()
-  }
-};
+    <h1>Arcade Economy System</h1>
+    <button class="btn" onclick="triggerSimulatedFetch()">Earn Game Credits</button>
 
-// Global Configuration
-const MAX_EARN_MINUTES = 1200; // 20 Hours
-const ROW_RESET_MS = 86400000; // 24 Hours
-const REST_BONUS_THRESHOLD_MS = 4 * 60 * 60 * 1000; // 4 Hours of continuous rest
+    <script>
+        // --- 1. SIMULATED BACKEND DATABASE ---
+        // Instead of a real server database, use localStorage or a local object variable
+        let playerDatabase = {
+            "player_123": { totalCredits: 500, earningMinutesToday: 0, lastActiveTime: Date.now() }
+        };
 
-// API Endpoint: Process currency earned from a connected game
-app.post('/api/arcade/earn', (req, res) => {
-  const { playerId, baseCreditsEarned, gameSessionMinutes } = req.body;
-  const player = playerDatabase[playerId];
+        // --- 2. SIMULATED API ENDPOINT ---
+        // Replace your app.post('/api/arcade/earn') logic with a standard frontend function
+        function simulateEarnEndpoint(playerId, gameSessionMinutes) {
+            const player = playerDatabase[playerId];
+            if (!player) return { error: "Player profile not found." };
 
-  if (!player) {
-    return res.status(404).json({ error: "Player profile not found." });
-  }
+            let multiplier = 1.0;
+            // Your rest bonus checks, daily limits, and credit logic go here
+            let actualCredits = Math.round(gameSessionMinutes * multiplier);
+            player.totalCredits += actualCredits;
 
-  const now = Date.now();
+            return { success: true, creditsAdded: actualCredits, totalCredits: player.totalCredits };
+        }
 
-  // 1. Check & Handle 24-Hour Daily Reset
-  if (now - player.lastResetTime >= ROW_RESET_MS) {
-    player.earningMinutesToday = 0;
-    player.lastResetTime = now;
-  }
-
-  // 2. Strict 20-Hour Cap Enforcement
-  if (player.earningMinutesToday >= MAX_EARN_MINUTES) {
-    return res.status(403).json({ 
-      error: "Daily earning limit reached.", 
-      message: "System lock: Please rest for at least 4 hours." 
-    });
-  }
-
-  // 3. Calculate Rest Bonus Multiplier
-  let multiplier = 1.0;
-  const timeSinceLastSession = now - player.lastActiveTime;
-
-  if (timeSinceLastSession >= REST_BONUS_THRESHOLD_MS) {
-    multiplier = 1.5; // 50% extra credits reward for resting!
-  }
-
-  // 4. Update Player Profile and Balances
-  const actualCredits = Math.round(baseCreditsEarned * multiplier);
-  player.totalCredits += actualCredits;
-  player.earningMinutesToday += gameSessionMinutes;
-  player.lastActiveTime = now;
-
-  // 5. Send confirmation back to the game client
-  res.json({
-    success: true,
-    creditsAdded: actualCredits,
-    totalCredits: player.totalCredits,
-    minutesUsedToday: player.earningMinutesToday,
-    restBonusApplied: multiplier > 1.0
-  });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Arcade Central Server running on port ${PORT}`));
-async function reportGameEarnings(playerId, credits, minutesPlayed) {
-  try {
-    const response = await fetch('https://your-arcade-server.com', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        playerId: playerId,
-        baseCreditsEarned: credits,
-        gameSessionMinutes: minutesPlayed
-      })
-    });
-
-    const data = await response.json();
-    
-    if (data.success) {
-      console.log(`Success! Total Credits: ${data.totalCredits}`);
-      if (data.restBonusApplied) alert("✨ Well-Rested Bonus Applied! 1.5x Multiplier! ✨");
-    } else {
-      alert(`Earning Locked: ${data.message}`);
-    }
-  } catch (error) {
-    console.error("Server connection failed", error);
-  }
-}
+        // --- 3. FRONTEND INTERACTION ---
+        function triggerSimulatedFetch() {
+            // Simulating your fetch().then() chain locally
+            const data = simulateEarnEndpoint("player_123", 20); 
+            
+            if (data.success) {
+                alert(`Success! Total Credits: ${data.totalCredits}`);
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        }
+    </script>
+</body>
+</html>
